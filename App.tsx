@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import RootNavigation from './src/ChatApp/naviagtion/Rootnavigation';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import {Alert, PermissionsAndroid} from 'react-native';
+import {Alert, PermissionsAndroid, View} from 'react-native';
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
-import notifee from '@notifee/react-native';
+import notifee, { EventType } from '@notifee/react-native';
+import ForegroundEvent from './src/PushNotification/Events/ForegroundEvent';
 
 
 
@@ -26,6 +27,8 @@ if(granted===PermissionsAndroid.RESULTS.GRANTED){
 }
 
   };
+
+  
   useEffect(() => {
     const messaging = getMessaging();
     const unsubscribe = onMessage(messaging, async remoteMessage => {
@@ -65,12 +68,43 @@ const  onDisplayNotification=async(remoteMessage)=> {
     console.log("token :- ", token);
     
   }
+
+  useEffect(() => {
+  console.log('Registering notification listener');
+
+  const unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
+    switch (type) {
+      case EventType.PRESS:
+        console.log('Notification pressed', detail.notification);
+        break;
+
+      case EventType.DISMISSED:
+        console.log('Notification dismissed');
+        break;
+    }
+  });
+
+  return () => {
+    console.log('Removing notification listener');
+    unsubscribe();
+  };
+}, []);
+
   
   
   return (
     <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
       <RootNavigation />
     </KeyboardProvider>
+
+
+
+
+    // <View style={{flex:1}}>
+    //        <ForegroundEvent/>
+
+
+    // </View>
   );
 };
 
