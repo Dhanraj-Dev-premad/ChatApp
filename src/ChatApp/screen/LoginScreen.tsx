@@ -96,7 +96,7 @@ const LoginScreen = () => {
         return;
       }
 
-      // Prepare the data to save locally.
+      // save data locally.
       const loggedInUser = {
         userId: userDocument.id,
         email: userData.email,
@@ -116,8 +116,9 @@ const LoginScreen = () => {
 
       // Navigate to Main.
       navigation.replace('Main', {
-        userId: userDocument.id,
-      });
+      userId: userDocument.id,
+       activeStatus: userData.active,
+       });
     } catch (error) {
       console.log('Firestore login error:', error);
 
@@ -168,7 +169,7 @@ const LoginScreen = () => {
 
       <Pressable
         onPress={() => {
-          navigation.navigate('SignUp Screen');
+          navigation.navigate('SignUpScreen');
         }}
       >
         <Text style={styles.orLogin}>Or SignUp</Text>

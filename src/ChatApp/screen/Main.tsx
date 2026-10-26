@@ -9,11 +9,14 @@ import {
 
 import { useRoute } from '@react-navigation/native';
 
-import Users from './Users';
+
 import Settings from './Settings';
+import Users from './Users';
 
 const Main = () => {
   const route = useRoute();
+ 
+const { activeStatus } = route.params as { activeStatus?: boolean };
   const userId = (route.params as any)?.userId;
   const [selectedTab, setSelectedTab] = useState(0);
 
@@ -153,3 +156,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+
+
+
+
+
+
+
+
+
+
+// await AsyncStorage.setItem(
+//         'loggedInUser',
+//         JSON.stringify(loggedInUser),
+//       );

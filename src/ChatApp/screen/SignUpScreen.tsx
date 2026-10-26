@@ -77,6 +77,7 @@ const SignUpScreen = () => {
         email: email.trim(),
         phoneNo: phoneNo.trim(),
         password: password,
+        active:false,
       };
 
       const userRef = await addDoc(usersRef, userData);

@@ -5,6 +5,9 @@ import {Alert, PermissionsAndroid, View} from 'react-native';
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
 import ForegroundEvent from './src/PushNotification/Events/ForegroundEvent';
+import CustomNoti from './src/Notifee/CustomNoti';
+import ForegroundServices from './src/Notifee/ForegroundServices';
+import CustomSound from './src/Notifee/CustomSound';
 
 
 
@@ -97,7 +100,7 @@ const  onDisplayNotification=async(remoteMessage)=> {
       <RootNavigation />
     </KeyboardProvider>
 
-
+       
 
 
     // <View style={{flex:1}}>
