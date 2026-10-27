@@ -1,25 +1,30 @@
-import React, { useEffect, useState } from 'react';
-
+import React, { useState } from 'react';
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { useNavigation } from '@react-navigation/native';
-import notifee, { EventType } from '@notifee/react-native';
+import notifee from '@notifee/react-native';
 
 import {
-  getFirestore,
+  getMessaging,
+  getToken,
+} from '@react-native-firebase/messaging';
+
+import {
   collection,
+  doc,
   getDocs,
+  getFirestore,
   query,
+  updateDoc,
   where,
 } from '@react-native-firebase/firestore';
 
@@ -30,51 +35,19 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-   
-
-   
-
-  const onDisplayNotification = async () => {
-    await notifee.requestPermission();
-
-    const channelId = await notifee.createChannel({
-      id: 'default',
-      name: 'default channel',
-    });
-
-    await notifee.displayNotification({
-      id: '123',
-      title: 'Login ',
-      body: 'Login Completed successfully ✅ ',
-      data: {
-        userId: '12345',
-      },
-      android: {
-        channelId,
-        smallIcon: 'ic_launcher',
-        pressAction: {
-          id: 'default',
-        },
-      },
-    });
-  };
-
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Validation', 'Please enter email and password.');
       return;
     }
 
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
     setLoading(true);
 
     try {
       const db = getFirestore();
 
-      // Find the user using their email.
       const usersQuery = query(
         collection(db, 'users'),
         where('email', '==', email.trim()),
@@ -90,38 +63,47 @@ const LoginScreen = () => {
       const userDocument = snapshot.docs[0];
       const userData = userDocument.data();
 
-      // Check the password.
       if (userData.password !== password) {
         Alert.alert('Login Failed', 'Incorrect password.');
         return;
       }
 
-      // save data locally.
+      // fcm token
+      try {
+        await notifee.requestPermission();
+
+        const fcmToken = await getToken(getMessaging());
+
+        await updateDoc(doc(db, 'users', userDocument.id), {
+          fcmToken,
+        });
+      } catch (tokenError) {
+        // continue login if token fails
+        console.error('Could not save FCM token:', tokenError);
+      }
+
       const loggedInUser = {
         userId: userDocument.id,
         email: userData.email,
       };
 
-      // Save the user in AsyncStorage.
       await AsyncStorage.setItem(
         'loggedInUser',
         JSON.stringify(loggedInUser),
       );
 
-      await onDisplayNotification();
-
       console.log('Login successful:', loggedInUser);
-
       Alert.alert('Success', 'Login successful!');
 
-      // Navigate to Main.
-      navigation.replace('Main', {
-      userId: userDocument.id,
-       activeStatus: userData.active,
-       });
+      navigation.replace(
+        'Main' as never,
+        {
+          userId: userDocument.id,
+          activeStatus: userData.active,
+        } as never,
+      );
     } catch (error) {
-      console.log('Firestore login error:', error);
-
+      console.error('Firestore login error:', error);
       Alert.alert(
         'Error',
         'Unable to check user details. Please try again.',
@@ -135,7 +117,7 @@ const LoginScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>
 
-      <View style={styles.TextContainer}>
+      <View style={styles.textContainer}>
         <TextInput
           placeholder="Enter Email"
           placeholderTextColor="gray"
@@ -168,11 +150,9 @@ const LoginScreen = () => {
       </TouchableOpacity>
 
       <Pressable
-        onPress={() => {
-          navigation.navigate('SignUpScreen');
-        }}
+        onPress={() => navigation.navigate('SignUpScreen' as never)}
       >
-        <Text style={styles.orLogin}>Or SignUp</Text>
+        <Text style={styles.orLogin}>Or Sign Up</Text>
       </Pressable>
     </View>
   );
@@ -185,7 +165,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'white',
   },
-
   title: {
     fontSize: 30,
     color: 'purple',
@@ -193,12 +172,10 @@ const styles = StyleSheet.create({
     marginTop: 50,
     fontWeight: 'bold',
   },
-
-  TextContainer: {
+  textContainer: {
     gap: 20,
     marginTop: 50,
   },
-
   input: {
     width: '90%',
     height: 50,
@@ -209,7 +186,6 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     color: 'black',
   },
-
   btn: {
     width: '90%',
     height: 50,
@@ -220,16 +196,13 @@ const styles = StyleSheet.create({
     marginTop: 50,
     backgroundColor: 'purple',
   },
-
   disabledBtn: {
     opacity: 0.6,
   },
-
   btnText: {
     color: 'white',
     fontSize: 18,
   },
-
   orLogin: {
     alignSelf: 'center',
     marginTop: 30,
@@ -240,6 +213,12 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 });
+
+
+
+
+
+
 
 
 
@@ -266,7 +245,7 @@ const styles = StyleSheet.create({
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // import { useNavigation } from '@react-navigation/native';
-// import notifee, { EventType } from '@notifee/react-native'
+// import notifee, { EventType } from '@notifee/react-native';
 
 // import {
 //   getFirestore,
@@ -283,50 +262,34 @@ const styles = StyleSheet.create({
 //   const [password, setPassword] = useState('');
 //   const [loading, setLoading] = useState(false);
 
-//   useEffect(() => {
-//     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
-//       switch (type) {
-//         case EventType.PRESS:
-//           console.log('Notification pressed', detail.notification);
-//           // Optional: Navigate when they tap the notification
-//            navigation.navigate('Settings', { userId: detail.notification.data?.userId });
-//           break;
+   
 
-//         case EventType.DISMISSED:
-//           console.log('Notification dismissed by user');
+   
 
-//           break;
-//       }
-//     });
-
-//     // Cleanup the listener when the screen unmounts
-//     return () => unsubscribe();
-//   }, []);
-
-//   const onDisplayNotification =async()=>{
+//   const onDisplayNotification = async () => {
 //     await notifee.requestPermission();
-//     const channelId =await notifee.createChannel({
-//       id:'default',
-//       name:'default channel',
-      
-//     });
-//     await notifee.displayNotification({
-//       id:'123',
-//       title:'Login ',
-//       body:'Login Completed successfully ✅ ',
-//       data:{
-//         userId:'12345'
-//       },
-//       android:{
-//         channelId,
-//         smallIcon:"ic_launcher",
-//         pressAction:{
-//           id:'default'
 
-//         }
-//       }
-//     })
-//   }
+//     const channelId = await notifee.createChannel({
+//       id: 'default',
+//       name: 'default channel',
+//     });
+
+//     await notifee.displayNotification({
+//       id: '123',
+//       title: 'Login ',
+//       body: 'Login Completed successfully ✅ ',
+//       data: {
+//         userId: '12345',
+//       },
+//       android: {
+//         channelId,
+//         smallIcon: 'ic_launcher',
+//         pressAction: {
+//           id: 'default',
+//         },
+//       },
+//     });
+//   };
 
 //   const handleLogin = async () => {
 //     if (!email.trim() || !password) {
@@ -365,7 +328,7 @@ const styles = StyleSheet.create({
 //         return;
 //       }
 
-//       // Prepare the data to save locally.
+//       // save data locally.
 //       const loggedInUser = {
 //         userId: userDocument.id,
 //         email: userData.email,
@@ -376,17 +339,18 @@ const styles = StyleSheet.create({
 //         'loggedInUser',
 //         JSON.stringify(loggedInUser),
 //       );
+
 //       await onDisplayNotification();
 
-      
 //       console.log('Login successful:', loggedInUser);
 
 //       Alert.alert('Success', 'Login successful!');
 
 //       // Navigate to Main.
 //       navigation.replace('Main', {
-//         userId: userDocument.id,
-//       });
+//       userId: userDocument.id,
+//        activeStatus: userData.active,
+//        });
 //     } catch (error) {
 //       console.log('Firestore login error:', error);
 
@@ -398,33 +362,6 @@ const styles = StyleSheet.create({
 //       setLoading(false);
 //     }
 //   };
-
-  
-//     // await notifee.displayNotification({
-//     //   id:'123',
-//     //   title:'Updated login info',
-//     //   body:'login info are changed',
-//     //   android:{
-//     //     channelId,
-//     //   },
-//     // });
-//   }
-//   //  async function cancel(notificationId) {
-//   //   try {
-//   //     await notifee.cancelNotification(notificationId);
-//   //   } catch (err) {
-//   //     console.log('Failed to cancel single notification:', err);
-//   //   }
-//   // }
-
-//   // async function cancelAll() {
-//   //   try {
-//   //     await notifee.cancelAllNotifications();
-//   //   } catch (err) {
-//   //     console.log('Failed to cancel all notifications:', err);
-//   //   }
-//   // }
-
 
 //   return (
 //     <View style={styles.container}>
@@ -454,10 +391,7 @@ const styles = StyleSheet.create({
 
 //       <TouchableOpacity
 //         style={[styles.btn, loading && styles.disabledBtn]}
-//         onPress={()=>{
-//           handleLogin();
-//           //cancel('123');
-//         }}
+//         onPress={handleLogin}
 //         disabled={loading}
 //       >
 //         <Text style={styles.btnText}>
@@ -466,10 +400,10 @@ const styles = StyleSheet.create({
 //       </TouchableOpacity>
 
 //       <Pressable
-// onPress={() => {
-//   // cancel('123');
-//   navigation.navigate('SignUp Screen');
-// }}      >
+//         onPress={() => {
+//           navigation.navigate('SignUpScreen');
+//         }}
+//       >
 //         <Text style={styles.orLogin}>Or SignUp</Text>
 //       </Pressable>
 //     </View>
@@ -538,207 +472,6 @@ const styles = StyleSheet.create({
 //     opacity: 0.6,
 //   },
 // });
-
-
-
-
-
-
-
-
-
-// import React, { useState } from 'react';
-
-// import {
-//   Pressable,
-//   StyleSheet,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   View,
-//   Alert,
-// } from 'react-native';
-
-// import { useNavigation } from '@react-navigation/native';
-
-// import {
-//   getFirestore,
-//   collection,
-//   getDocs,
-//   query,
-//   where,
-// } from '@react-native-firebase/firestore';
-
-// const LoginScreen = () => {
-//   const navigation = useNavigation();
-
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [loading, setLoading] = useState(false);
-
-//   const handleLogin = async () => {
-//     if (!email.trim() || !password) {
-//       Alert.alert('Validation', 'Please enter email and password.');
-//       return;
-//     }
-
-//     setLoading(true);
-
-//     try {
-//       const db = getFirestore();
-
-//       // Find the user document with the entered email
-//       const usersQuery = query(
-//         collection(db, 'users'),
-//         where('email', '==', email.trim()),
-//       );
-
-//       const snapshot = await getDocs(usersQuery);
-
-//       if (snapshot.empty) {
-//         Alert.alert('Login Failed', 'User not found.');
-//         return;
-//       }
-
-//       const userDocument = snapshot.docs[0];
-//       const userData = userDocument.data();
-
-      
-//       if (userData.password !== password) {
-//         Alert.alert('Login Failed', 'Incorrect password.');
-//         return;
-//       }
-
-//       console.log('Login successful:', userDocument.id);
-//       console.log('User data:', userData);
-
-//       Alert.alert('Success', 'Login successful!');
-
-//       // Replace with your actual destination route if needed.
-//        navigation.replace('Main', {
-//          userId: userDocument.id,
-//        });
-//     } catch (error) {
-//       console.log('Firestore login error:', error);
-
-//       Alert.alert('Error', 'Unable to check user details.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.title}>Login</Text>
-
-//       <View style={styles.TextContainer}>
-//         <TextInput
-//           placeholder="Enter Email"
-//           placeholderTextColor="gray"
-//           style={styles.input}
-//           onChangeText={setEmail}
-//           value={email}
-//           keyboardType="email-address"
-//           autoCapitalize="none"
-//           autoCorrect={false}
-//         />
-
-//         <TextInput
-//           placeholder="Enter Password"
-//           placeholderTextColor="gray"
-//           style={styles.input}
-//           onChangeText={setPassword}
-//           value={password}
-//           secureTextEntry
-//         />
-//       </View>
-
-//       <TouchableOpacity
-//         style={styles.btn}
-//         onPress={handleLogin}
-//         disabled={loading}
-        
-//       >
-//         <Text style={styles.btnText}>
-//           {loading ? 'Checking...' : 'Login'}
-//         </Text>
-//       </TouchableOpacity>
-
-//       <Pressable onPress={() => navigation.navigate('SignUpScreen')}>
-//         <Text style={styles.orLogin}>Or SignUp</Text>
-//       </Pressable>
-//     </View>
-//   );
-// };
-
-// export default LoginScreen;
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: 'white',
-//   },
-//   title: {
-//     fontSize: 30,
-//     color: 'purple',
-//     alignSelf: 'center',
-//     marginTop: 50,
-//     fontWeight: 'bold',
-//   },
-//   TextContainer: {
-//     gap: 20,
-//     marginTop: 50,
-//   },
-//   input: {
-//     width: '90%',
-//     height: 50,
-//     borderWidth: 0.5,
-//     borderRadius: 11,
-//     borderColor: 'gray',
-//     alignSelf: 'center',
-//     paddingLeft: 20,
-//     color: 'black',
-//   },
-//   btn: {
-//     width: '90%',
-//     height: 50,
-//     alignSelf: 'center',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     borderRadius: 11,
-//     marginTop: 50,
-//     backgroundColor: 'purple',
-//   },
-//   btnText: {
-//     color: 'white',
-//     fontSize: 18,
-//   },
-//   orLogin: {
-//     alignSelf: 'center',
-//     marginTop: 30,
-//     fontSize: 20,
-//     textDecorationLine: 'underline',
-//     fontWeight: '600',
-//     color: 'purple',
-//     opacity: 0.6,
-//   },
-// });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

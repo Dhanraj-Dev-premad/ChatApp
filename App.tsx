@@ -8,6 +8,7 @@ import ForegroundEvent from './src/PushNotification/Events/ForegroundEvent';
 import CustomNoti from './src/Notifee/CustomNoti';
 import ForegroundServices from './src/Notifee/ForegroundServices';
 import CustomSound from './src/Notifee/CustomSound';
+import ApiBasics from './src/Api/ApiBasics';
 
 
 
@@ -99,6 +100,7 @@ const  onDisplayNotification=async(remoteMessage)=> {
     <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
       <RootNavigation />
     </KeyboardProvider>
+    // <ApiBasics/>
 
        
 
